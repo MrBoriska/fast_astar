@@ -1,3 +1,25 @@
+# cse220_project
+A class project using RISC-V64 (the README of the forked repo is included below)
+
+This project runs a workload using [BigZaphod's A* library](https://github.com/BigZaphod/AStar). It generates a graph and runs
+the A* libary's shortest path calculation (using the Manhattan distance between nodes) from each node to every other node and
+retrieves the path cost and path hop count. 
+
+This library and workload were chosen because they do not have any external library dependencies so that it can be cross-compiled
+for a RISC-V64 system even if your host system does not have RISC-V64 binaries of libraries. 
+
+To compile this for RISC-V just requires a RISC-V compiler, i.e. requires no special command-line arguments. I compiled it with
+the following command:
+
+`riscv64-linux-gnu-gcc main.c AStar.c -static -o [outputFilename]`
+
+The workload is self-contained, so you just need to run the binary to execute the workload. The workload does not produce any
+output unless you uncomment the print statements. 
+
+
+
+
+Here is the forked repo's README:
 # A*
 
 This is my implementation of A* in C. It uses a binary heap to implement the priority queue and an indexed array for fast lookups of previously visited nodes.
