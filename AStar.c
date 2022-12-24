@@ -439,13 +439,16 @@ ASPath ASPathCreate(const ASPathNodeSource *source, void *context, void *startNo
                 break;
             }
         }
-        
+
         RemoveNodeFromOpenSet(current);
         AddNodeToClosedSet(current);
         
+        // search neighbors
         neighborList->count = 0;
-        source->nodeNeighbors(neighborList, GetNodeKey(current), context);
 
+        source->nodeNeighbors(neighborList, GetNodeKey(current), context);
+        
+        // iterate all neighbors
         for (size_t n=0; n<neighborList->count; n++) {
             const float cost = GetNodeCost(current) + NeighborListGetEdgeCost(neighborList, n);
             Node neighbor = GetNode(visitedNodes, NeighborListGetNodeKey(neighborList, n));
