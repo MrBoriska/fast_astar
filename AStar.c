@@ -201,13 +201,10 @@ static inline int NodeRankCompare(Node n1, Node n2)
     }
 }
 
-static inline float GetPathCostHeuristic(Node a, Node b, Node prev_a)
+static inline float GetPathCostHeuristic(Node a, Node b)
 {
     if (a.nodes->source->pathCostHeuristic && !NodeIsNull(a) && !NodeIsNull(b)) {
-        if (!NodeIsNull(prev_a))
-            return a.nodes->source->pathCostHeuristic(GetNodeKey(a), GetNodeKey(b), GetNodeKey(prev_a), a.nodes->context);
-        else
-            return a.nodes->source->pathCostHeuristic(GetNodeKey(a), GetNodeKey(b), NULL, a.nodes->context);
+        return a.nodes->source->pathCostHeuristic(GetNodeKey(a), GetNodeKey(b), a.nodes->context);
     } else {
         return 0;
     }
@@ -428,7 +425,7 @@ ASPath ASPathCreate(const ASPathNodeSource *source, void *context, void *startNo
     SetNodeIsGoal(goalNode);
     
     // set the starting node's estimate cost to the goal and add it to the open set
-    SetNodeEstimatedCost(current,  GetPathCostHeuristic(current, goalNode, prev_node));
+    SetNodeEstimatedCost(current,  GetPathCostHeuristic(current, goalNode));
     AddNodeToOpenSet(current, 0, NodeNull);
 
     
@@ -460,7 +457,7 @@ ASPath ASPathCreate(const ASPathNodeSource *source, void *context, void *startNo
             Node neighbor = GetNode(visitedNodes, NeighborListGetNodeKey(neighborList, n));
             
             if (!NodeHasEstimatedCost(neighbor)) {
-                SetNodeEstimatedCost(neighbor, GetPathCostHeuristic(neighbor, goalNode, prev_node));
+                SetNodeEstimatedCost(neighbor, GetPathCostHeuristic(neighbor, goalNode));
             }
             
             if (NodeIsInOpenSet(neighbor) && cost < GetNodeCost(neighbor)) {
