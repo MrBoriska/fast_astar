@@ -15,9 +15,14 @@ typedef struct node {
     struct node* neighbors[MAX_NODES];
 } node;
 
-static float hopCost(void *srcNode, void *dstNode, void *context) {
+static float hopCost(void *srcNode, void *dstNode, void *prevsrcNode, void *context) {
     node* src = (node*)srcNode;
     node* dst = (node*)dstNode;
+    node* prev_src = (node*)prevsrcNode;
+
+    if (prevsrcNode != NULL) {
+        // this actual for first node of path
+    }
 
     /* using the Manhattan distance because the sqrt() and pow() functions
        needed for Euclidean distance are part of math.h, which is an external
@@ -30,14 +35,14 @@ static float hopCost(void *srcNode, void *dstNode, void *context) {
     return x_delta + y_delta;
 }
 
-static void nodeNeighbors(ASNeighborList neighbors, void* srcNode, void* context) {
+static void nodeNeighbors(ASNeighborList neighbors, void* srcNode, void* fromsrcNode, void* context) {
     node* src = (node*)srcNode;
     int i;
     for (i = 0; i < MAX_NODES; i++) {
         if (src->neighbors[i]) {
             // cost and pose for node i equal cost and pose for 
             ASNeighborListAdd(neighbors, (void*)src->neighbors[i], 
-                    hopCost(srcNode, (void*)(src->neighbors[i]), (void*)NULL));
+                    hopCost(srcNode, (void*)(src->neighbors[i]), fromsrcNode,  context));
         }
     }
 }
@@ -67,7 +72,8 @@ int main(int argc, char** argv) {
     for (i = 0; i < MAX_NODES; i++) {
         //printf("node %d :", i);
         for (j = 0; j < MAX_NODES; j++) {
-            if (i != j && hopCost(graph[i], graph[j], NULL) < HOP_LEN) {
+            if (i != j && hopCost(graph[i], graph[j], NULL, NULL) < HOP_LEN) {
+                // set by map allowed direction type
                 graph[i]->neighbors[j] = graph[j];
                 graph[j]->neighbors[i] = graph[i];
 
@@ -87,7 +93,7 @@ int main(int argc, char** argv) {
             path = ASPathCreate(&pathSource, (void*)NULL, graph[i], graph[j]);
             cost = ASPathGetCost(path);
             hopCount = ASPathGetCount(path);
-            //printf("path from %d to %d: cost=%f, hopCount=%d\n", i, j, cost, hopCount);
+            printf("path from %d to %d: cost=%f, hopCount=%d\n", i, j, cost, hopCount);
             ASPathDestroy(path);
     //    }
     //}
