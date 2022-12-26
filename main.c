@@ -36,18 +36,12 @@ static float hopCost(void *srcNode, void *dstNode, void *context) {
     node* dst = (node*)dstNode;
     Context *c = (Context*)context;
 
-    if (context) {
-        return manhetten_dist(src->x, src->y, dst->x, dst->y);///c->v;
-    } else {
-        // todo: this is not use in future
-        return manhetten_dist(src->x, src->y, dst->x, dst->y);
-    }
+    return manhetten_dist(src->x, src->y, dst->x, dst->y);
 }
 
 static float angleBetweenVectors(float x1, float y1, float x2, float y2)
 {   
-    //return ((x2/x1)/(y2/y1));
-    return (x1*x2+y1*y2)/(sqrt(x1*x1+y1*y1)*sqrt(x2*x2+y2*y2));
+    return 3.14*(1.0-((x1*x2+y1*y2)/(sqrt(x1*x1+y1*y1)*sqrt(x2*x2+y2*y2))))/2.0; // improve perfomance
 }
 
 static float neighborCost(void *srcNode, void *dstNode, void *fromsrcNode, void *context) {
@@ -73,7 +67,7 @@ static float neighborCost(void *srcNode, void *dstNode, void *fromsrcNode, void 
     goal_y = dst->y - src->y;
     
     if ((dir_x+dir_y) != 0.0 && (goal_x+goal_y) != 0.0) {
-        k = 3.14*(1.0-angleBetweenVectors(dir_x, dir_y, goal_x, goal_y))/2.0;
+        k = angleBetweenVectors(dir_x, dir_y, goal_x, goal_y);
         k /= c->w;
     }
 
@@ -82,8 +76,12 @@ static float neighborCost(void *srcNode, void *dstNode, void *fromsrcNode, void 
 
 static void nodeNeighbors(ASNeighborList neighbors, void* srcNode, void* fromsrcNode, void* context) {
     node* src = (node*)srcNode;
+
+    // todo: get cost for srcNode;
+
     int i;
     for (i = 0; i < MAX_NODES; i++) {
+        // check if node collision by time (cost) with existing paths (get from context)
         if (src->neighbors[i]) {
             ASNeighborListAdd(neighbors, (void*)src->neighbors[i], neighborCost(srcNode, (void*)(src->neighbors[i]), fromsrcNode,  context));
         }
@@ -138,8 +136,12 @@ int main(int argc, char** argv) {
     //for (i = 0; i < MAX_NODES; i++) {
     //    for (j = 0; j < MAX_NODES; j++) {
             path = ASPathCreate(&pathSource, (void*)(&context), graph[i], graph[j]);
+
             cost = ASPathGetCost(path);
             hopCount = ASPathGetCount(path);
+            for (int ind=0; ind<hopCount; ind++) {
+                //NodeGetRecord(ASPathGetNode(path, ind))->cost
+            }
             printf("path from %d to %d: cost=%f, hopCount=%d\n", i, j, cost, hopCount);
             ASPathDestroy(path);
     //    }
