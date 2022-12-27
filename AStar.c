@@ -420,7 +420,7 @@ ASPath ASPathCreate(const ASPathNodeSource *source, void *context, void *startNo
     Node prev_node = NodeNull;
     Node goalNode = GetNode(visitedNodes, goalNodeKey);
     ASPath path = NULL;
-    
+
     // mark the goal node as the goal
     SetNodeIsGoal(goalNode);
     
@@ -489,12 +489,12 @@ ASPath ASPathCreate(const ASPathNodeSource *source, void *context, void *startNo
             n = GetParentNode(n);
         }
         
-        path = calloc(1, sizeof(struct __ASPath));
+        path = malloc(sizeof(struct __ASPath));
         //path = malloc(sizeof(struct __ASPath) + (count * (sizeof(float)+source->nodeSize)));
         path->nodeSize = source->nodeSize;
         path->count = count;
-        path->costs = realloc(path->costs, sizeof(float) * count);
-        path->nodeKeys = realloc(path->nodeKeys, path->nodeSize * count);
+        path->costs = calloc(count, sizeof(float));
+        path->nodeKeys = calloc(count, path->nodeSize);
         
         n = current;
         for (size_t i=count; i>0; i--) {
@@ -512,15 +512,22 @@ ASPath ASPathCreate(const ASPathNodeSource *source, void *context, void *startNo
 
 void ASPathDestroy(ASPath path)
 {
-    free(path);
+    
+    //if (path && path->costs) free(path->costs);
+    //if (path && path->nodeKeys) free(path->nodeKeys);
+    if (path) free(path);
 }
 
 ASPath ASPathCopy(ASPath path)
 {
     if (path) {
-        const size_t size = sizeof(struct __ASPath) + (path->count * path->nodeSize);
+        const size_t size = sizeof(struct __ASPath);
         ASPath newPath = malloc(size);
         memcpy(newPath, path, size);
+        newPath->costs = calloc(path->count, sizeof(float));
+        memcpy(newPath->costs, path->costs, path->count*sizeof(float));
+        newPath->nodeKeys = calloc(path->count, sizeof(path->nodeSize));
+        memcpy(newPath->nodeKeys, path->nodeKeys, path->count*sizeof(path->nodeSize));
         return newPath;
     } else {
         return NULL;

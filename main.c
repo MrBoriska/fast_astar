@@ -43,6 +43,14 @@ static float hopCost(void *srcNode, void *dstNode, void *context) {
 
 static float angleBetweenVectors(float x1, float y1, float x2, float y2)
 {   
+    // float dot = x1*x2+y1*y2;
+    // if (dot > 0) { // в одну сторону
+    //     return 0.0;
+    // } else if (dot < 0) { // в противоположные стороны
+    //     return 3.14;
+    // }// перпендикулярно
+    // return 3.14/2.0;
+
     return 3.14*(1.0-((x1*x2+y1*y2)/(sqrt(x1*x1+y1*y1)*sqrt(x2*x2+y2*y2))))/2.0; // improve perfomance
 }
 
@@ -113,7 +121,6 @@ int main(int argc, char** argv) {
         //printf("node = %d. x = %.1f, y = %.1f\n", i, graph[i]->x, graph[i]->y);
     }
     int hopCount;
-    ASPath path;
     for (i = 0; i < MAX_NODES; i++) {
         //printf("node %d :", i);
         for (j = 0; j < MAX_NODES; j++) {
@@ -135,25 +142,27 @@ int main(int argc, char** argv) {
 
     clock_t begin = clock();
 
-    i = 0;
-    j = 1023;
-    //for (i = 0; i < MAX_NODES; i++) {
-    //    for (j = 0; j < MAX_NODES; j++) {
-            path = ASPathCreate(&pathSource, (void*)(&context), graph[i], graph[j]);
+    //i = 0;
+    //j = 1023;
+    float cost;
+    for (i = 0; i < MAX_NODES; i++) {
+        for (j = 0; j < MAX_NODES; j++) {
+            if (i != j) {
+                ASPath path = ASPathCreate(&pathSource, (void*)(&context), graph[i], graph[j]);
 
-            hopCount = ASPathGetCount(path);
-            float cost;
-            cost = ASPathGetCost(path, hopCount);
-            for (int ind=0; ind<hopCount; ind++) {
-                cost = ASPathGetCost(path, ind);
-                printf("step %d: cost=%f\n", ind, cost);
+                hopCount = ASPathGetCount(path);
+                cost = ASPathGetCost(path, hopCount);
+                for (int ind=0; ind<hopCount; ind++) {
+                    cost = ASPathGetCost(path, ind);
+                    //printf("step %d: cost=%f\n", ind, cost);
+                }
+                ASPathDestroy(path);
             }
-            printf("path from %d to %d: cost=%f, hopCount=%d\n", i, j, cost, hopCount);
-            ASPathDestroy(path);
-    //    }
-    //}
+        }
+    }
     clock_t end = clock();
     double time_spent = (double)(end - begin) / CLOCKS_PER_SEC;
+    printf("path from %d to %d: cost=%f, hopCount=%d\n", i, j, cost, hopCount);
     printf("Processing time: %f\n", time_spent);
     return 0;
 }
