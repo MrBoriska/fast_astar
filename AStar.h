@@ -60,7 +60,7 @@ void ASPathDestroy(ASPath path);
 ASPath ASPathCopy(ASPath path);
 
 // fetches the total cost of the path
-float ASPathGetCost(ASPath path);
+float ASPathGetCost(ASPath path, size_t i);
 
 // fetches the number of nodes in the path
 size_t ASPathGetCount(ASPath path);

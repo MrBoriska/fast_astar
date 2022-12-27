@@ -43,8 +43,8 @@ struct __ASNeighborList {
 struct __ASPath {
     size_t nodeSize;
     size_t count;
-    float cost;
-    int8_t nodeKeys[];
+    float* costs;
+    void *nodeKeys;
 };
 
 typedef struct {
@@ -489,13 +489,16 @@ ASPath ASPathCreate(const ASPathNodeSource *source, void *context, void *startNo
             n = GetParentNode(n);
         }
         
-        path = malloc(sizeof(struct __ASPath) + (count * source->nodeSize));
+        path = calloc(1, sizeof(struct __ASPath));
+        //path = malloc(sizeof(struct __ASPath) + (count * (sizeof(float)+source->nodeSize)));
         path->nodeSize = source->nodeSize;
         path->count = count;
-        path->cost = GetNodeCost(current);
+        path->costs = realloc(path->costs, sizeof(float) * count);
+        path->nodeKeys = realloc(path->nodeKeys, path->nodeSize * count);
         
         n = current;
         for (size_t i=count; i>0; i--) {
+            path->costs[i] = GetNodeCost(n);
             memcpy(path->nodeKeys + ((i - 1) * source->nodeSize), GetNodeKey(n), source->nodeSize);
             n = GetParentNode(n);
         }
@@ -524,9 +527,9 @@ ASPath ASPathCopy(ASPath path)
     }
 }
 
-float ASPathGetCost(ASPath path)
+float ASPathGetCost(ASPath path, size_t i)
 {
-    return path? path->cost : INFINITY;
+    return path? path->costs[i] : INFINITY;
 }
 
 size_t ASPathGetCount(ASPath path)

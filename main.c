@@ -1,5 +1,6 @@
 #include "AStar.h"
 #include <stdio.h>
+#include <stdint.h>
 #include <time.h>
 #include <math.h>
 
@@ -20,6 +21,7 @@ typedef struct node {
 typedef struct Context {
     float v;
     float w;
+    //uint64_t timestamp;
 } Context;
 
 static float manhetten_dist(float x1, float y1, float x2, float y2) {
@@ -34,7 +36,7 @@ static float manhetten_dist(float x1, float y1, float x2, float y2) {
 static float hopCost(void *srcNode, void *dstNode, void *context) {
     node* src = (node*)srcNode;
     node* dst = (node*)dstNode;
-    Context *c = (Context*)context;
+    //Context *c = (Context*)context;
 
     return manhetten_dist(src->x, src->y, dst->x, dst->y);
 }
@@ -76,6 +78,7 @@ static float neighborCost(void *srcNode, void *dstNode, void *fromsrcNode, void 
 
 static void nodeNeighbors(ASNeighborList neighbors, void* srcNode, void* fromsrcNode, void* context) {
     node* src = (node*)srcNode;
+    Context *ctx = (Context *)context;
 
     // todo: get cost for srcNode;
 
@@ -83,7 +86,9 @@ static void nodeNeighbors(ASNeighborList neighbors, void* srcNode, void* fromsrc
     for (i = 0; i < MAX_NODES; i++) {
         // check if node collision by time (cost) with existing paths (get from context)
         if (src->neighbors[i]) {
-            ASNeighborListAdd(neighbors, (void*)src->neighbors[i], neighborCost(srcNode, (void*)(src->neighbors[i]), fromsrcNode,  context));
+            float neighbor_cost = neighborCost(srcNode, (void*)(src->neighbors[i]), fromsrcNode,  context);
+            //if ((ctx->timestamp + srcNode_cost + neighbor_cost) is not equal for x/y and cost for all robots
+            ASNeighborListAdd(neighbors, (void*)src->neighbors[i], neighbor_cost);
         }
     }
 }
@@ -108,7 +113,6 @@ int main(int argc, char** argv) {
         //printf("node = %d. x = %.1f, y = %.1f\n", i, graph[i]->x, graph[i]->y);
     }
     int hopCount;
-    float cost;
     ASPath path;
     for (i = 0; i < MAX_NODES; i++) {
         //printf("node %d :", i);
@@ -137,10 +141,12 @@ int main(int argc, char** argv) {
     //    for (j = 0; j < MAX_NODES; j++) {
             path = ASPathCreate(&pathSource, (void*)(&context), graph[i], graph[j]);
 
-            cost = ASPathGetCost(path);
             hopCount = ASPathGetCount(path);
+            float cost;
+            cost = ASPathGetCost(path, hopCount);
             for (int ind=0; ind<hopCount; ind++) {
-                //NodeGetRecord(ASPathGetNode(path, ind))->cost
+                cost = ASPathGetCost(path, ind);
+                printf("step %d: cost=%f\n", ind, cost);
             }
             printf("path from %d to %d: cost=%f, hopCount=%d\n", i, j, cost, hopCount);
             ASPathDestroy(path);
