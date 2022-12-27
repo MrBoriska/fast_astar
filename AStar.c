@@ -30,20 +30,19 @@
 #include "AStar.h"
 #include <math.h>
 #include <string.h>
-#include <stdint.h>
 
 struct __ASNeighborList {
     const ASPathNodeSource *source;
     size_t capacity;
     size_t count;
-    float *costs;
+    uint64_t *costs;
     void *nodeKeys;
 };
 
 struct __ASPath {
     size_t nodeSize;
     size_t count;
-    float* costs;
+    uint64_t* costs;
     void *nodeKeys;
 };
 
@@ -53,8 +52,8 @@ typedef struct {
     unsigned isGoal:1;
     unsigned hasParent:1;
     unsigned hasEstimatedCost:1;
-    float estimatedCost;
-    float cost;
+    uint64_t estimatedCost;
+    uint64_t cost;
     size_t openIndex;
     size_t parentIndex;
     int8_t nodeKey[];
@@ -138,23 +137,23 @@ static inline void AddNodeToClosedSet(Node n)
     NodeGetRecord(n)->isClosed = 1;
 }
 
-static inline float GetNodeRank(Node n)
+static inline uint64_t GetNodeRank(Node n)
 {
     NodeRecord *record = NodeGetRecord(n);
     return record->estimatedCost + record->cost;
 }
 
-static inline float GetNodeCost(Node n)
+static inline uint64_t GetNodeCost(Node n)
 {
     return NodeGetRecord(n)->cost;
 }
 
-static inline float GetNodeEstimatedCost(Node n)
+static inline uint64_t GetNodeEstimatedCost(Node n)
 {
     return NodeGetRecord(n)->estimatedCost;
 }
 
-static inline void SetNodeEstimatedCost(Node n, float estimatedCost)
+static inline void SetNodeEstimatedCost(Node n, uint64_t estimatedCost)
 {
     NodeRecord *record = NodeGetRecord(n);
     record->estimatedCost = estimatedCost;
@@ -190,8 +189,8 @@ static inline Node GetParentNode(Node n)
 
 static inline int NodeRankCompare(Node n1, Node n2)
 {
-    const float rank1 = GetNodeRank(n1);
-    const float rank2 = GetNodeRank(n2);
+    const uint64_t rank1 = GetNodeRank(n1);
+    const uint64_t rank2 = GetNodeRank(n2);
     if (rank1 < rank2) {
         return -1;
     } else if (rank1 > rank2) {
@@ -201,7 +200,7 @@ static inline int NodeRankCompare(Node n1, Node n2)
     }
 }
 
-static inline float GetPathCostHeuristic(Node a, Node b)
+static inline uint64_t GetPathCostHeuristic(Node a, Node b)
 {
     if (a.nodes->source->pathCostHeuristic && !NodeIsNull(a) && !NodeIsNull(b)) {
         return a.nodes->source->pathCostHeuristic(GetNodeKey(a), GetNodeKey(b), a.nodes->context);
@@ -333,7 +332,7 @@ static inline void DidInsertIntoOpenSetAtIndex(VisitedNodes nodes, size_t index)
     }
 }
 
-static inline void AddNodeToOpenSet(Node n, float cost, Node parent)
+static inline void AddNodeToOpenSet(Node n, uint64_t cost, Node parent)
 {
     NodeRecord *record = NodeGetRecord(n);
 
@@ -384,7 +383,7 @@ static inline void NeighborListDestroy(ASNeighborList list)
     free(list);
 }
 
-static inline float NeighborListGetEdgeCost(ASNeighborList list, size_t index)
+static inline uint64_t NeighborListGetEdgeCost(ASNeighborList list, size_t index)
 {
     return list->costs[index];
 }
@@ -396,11 +395,11 @@ static void *NeighborListGetNodeKey(ASNeighborList list, size_t index)
 
 /********************************************/
 
-void ASNeighborListAdd(ASNeighborList list, void *node, float edgeCost)
+void ASNeighborListAdd(ASNeighborList list, void *node, uint64_t edgeCost)
 {
     if (list->count == list->capacity) {
         list->capacity = 1 + (list->capacity * 2);
-        list->costs = realloc(list->costs, sizeof(float) * list->capacity);
+        list->costs = realloc(list->costs, sizeof(uint64_t) * list->capacity);
         list->nodeKeys = realloc(list->nodeKeys, list->source->nodeSize * list->capacity);
     }
     list->costs[list->count] = edgeCost;
@@ -453,7 +452,7 @@ ASPath ASPathCreate(const ASPathNodeSource *source, void *context, void *startNo
         
         // iterate all neighbors
         for (size_t n=0; n<neighborList->count; n++) {
-            const float cost = GetNodeCost(current) + NeighborListGetEdgeCost(neighborList, n);
+            const uint64_t cost = GetNodeCost(current) + NeighborListGetEdgeCost(neighborList, n);
             Node neighbor = GetNode(visitedNodes, NeighborListGetNodeKey(neighborList, n));
             
             if (!NodeHasEstimatedCost(neighbor)) {
@@ -490,10 +489,10 @@ ASPath ASPathCreate(const ASPathNodeSource *source, void *context, void *startNo
         }
         
         path = calloc(1, sizeof(struct __ASPath));
-        //path = malloc(sizeof(struct __ASPath) + (count * (sizeof(float)+source->nodeSize)));
+        //path = malloc(sizeof(struct __ASPath) + (count * (sizeof(uint64_t)+source->nodeSize)));
         path->nodeSize = source->nodeSize;
         path->count = count;
-        path->costs = realloc(path->costs, sizeof(float) * count);
+        path->costs = realloc(path->costs, sizeof(uint64_t) * count);
         path->nodeKeys = realloc(path->nodeKeys, path->nodeSize * count);
         
         n = current;
@@ -527,7 +526,7 @@ ASPath ASPathCopy(ASPath path)
     }
 }
 
-float ASPathGetCost(ASPath path, size_t i)
+uint64_t ASPathGetCost(ASPath path, size_t i)
 {
     return path? path->costs[i] : INFINITY;
 }

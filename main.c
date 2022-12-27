@@ -5,27 +5,27 @@
 #include <math.h>
 
 #define MAX_NODES   1024
-#define MAX_POS     32
-#define HOP_LEN     2
-#define X_STEP      1
-#define Y_STEP      1
+#define MAX_POS     32000
+#define HOP_LEN     2000
+#define X_STEP      1000
+#define Y_STEP      1000
 #define Y_PER_ROW   32
 
 typedef struct node {
-    float x;
-    float y;
+    uint64_t x; // mm
+    uint64_t y; // mm
     struct node* neighbors[MAX_NODES];
 } node;
 
 
 typedef struct Context {
-    float v;
-    float w;
+    uint64_t v;
+    uint64_t w;
     //uint64_t timestamp;
 } Context;
 
-static float manhetten_dist(float x1, float y1, float x2, float y2) {
-    float x_delta, y_delta;
+static uint64_t manhetten_dist(uint64_t x1, uint64_t y1, uint64_t x2, uint64_t y2) {
+    uint64_t x_delta, y_delta;
     // to avoid needing abs(), subtract the smaller from the greater
     x_delta = (x1 > x2) ? (x1 - x2) : (x2 - x1);
     y_delta = (y1 > y2) ? (y1 - y2) : (y2 - y1);
@@ -33,20 +33,20 @@ static float manhetten_dist(float x1, float y1, float x2, float y2) {
 }
 
 // Use for heuristic only (node to goal dist)
-static float hopCost(void *srcNode, void *dstNode, void *context) {
+static uint64_t hopCost(void *srcNode, void *dstNode, void *context) {
     node* src = (node*)srcNode;
     node* dst = (node*)dstNode;
     //Context *c = (Context*)context;
 
     return manhetten_dist(src->x, src->y, dst->x, dst->y);
 }
-
-static float angleBetweenVectors(float x1, float y1, float x2, float y2)
+// result in degrees
+static uint64_t angleBetweenVectors(uint64_t x1, uint64_t y1, uint64_t x2, uint64_t y2)
 {   
-    return 3.14*(1.0-((x1*x2+y1*y2)/(sqrt(x1*x1+y1*y1)*sqrt(x2*x2+y2*y2))))/2.0; // improve perfomance
+    return 360*(1-((x1*x2+y1*y2)/(sqrt(x1*x1+y1*y1)*sqrt(x2*x2+y2*y2))))/2; // improve perfomance
 }
 
-static float neighborCost(void *srcNode, void *dstNode, void *fromsrcNode, void *context) {
+static uint64_t neighborCost(void *srcNode, void *dstNode, void *fromsrcNode, void *context) {
     node* src = (node*)srcNode;
     node* dst = (node*)dstNode;
     node* fsrc = (node*)fromsrcNode;
@@ -57,14 +57,14 @@ static float neighborCost(void *srcNode, void *dstNode, void *fromsrcNode, void 
     }
 
     // Increase cost koefficient for change direction considering (1.0 for 180 deg. and 0.0 for 0 deg.)
-    float k = 0.0;
+    uint64_t k = 0;
     // Get current direction of AGV
-    float dir_x, dir_y;
+    uint64_t dir_x, dir_y;
     dir_x = src->x - fsrc->x;
     dir_y = src->y - fsrc->y;
 
     // Get target direction of AGV
-    float goal_x, goal_y;
+    uint64_t goal_x, goal_y;
     goal_x = dst->x - src->x;
     goal_y = dst->y - src->y;
     
@@ -86,7 +86,7 @@ static void nodeNeighbors(ASNeighborList neighbors, void* srcNode, void* fromsrc
     for (i = 0; i < MAX_NODES; i++) {
         // check if node collision by time (cost) with existing paths (get from context)
         if (src->neighbors[i]) {
-            float neighbor_cost = neighborCost(srcNode, (void*)(src->neighbors[i]), fromsrcNode,  context);
+            uint64_t neighbor_cost = neighborCost(srcNode, (void*)(src->neighbors[i]), fromsrcNode,  context);
             //if ((ctx->timestamp + srcNode_cost + neighbor_cost) is not equal for x/y and cost for all robots
             ASNeighborListAdd(neighbors, (void*)src->neighbors[i], neighbor_cost);
         }
@@ -142,13 +142,13 @@ int main(int argc, char** argv) {
             path = ASPathCreate(&pathSource, (void*)(&context), graph[i], graph[j]);
 
             hopCount = ASPathGetCount(path);
-            float cost;
+            uint64_t cost;
             cost = ASPathGetCost(path, hopCount);
             for (int ind=0; ind<hopCount; ind++) {
                 cost = ASPathGetCost(path, ind);
-                printf("step %d: cost=%f\n", ind, cost);
+                printf("step %d: cost=%f\n", ind, cost/1000.0);
             }
-            printf("path from %d to %d: cost=%f, hopCount=%d\n", i, j, cost, hopCount);
+            printf("path from %d to %d: cost=%f, hopCount=%d\n", i, j, cost/1000.0, hopCount);
             ASPathDestroy(path);
     //    }
     //}
