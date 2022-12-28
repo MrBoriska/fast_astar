@@ -449,7 +449,7 @@ ASPath ASPathCreate(const ASPathNodeSource *source, void *context, void *startNo
         // search neighbors
         neighborList->count = 0;
 
-        source->nodeNeighbors(neighborList, GetNodeKey(current), GetNodeKey(prev_node), context);
+        source->nodeNeighbors(neighborList, GetNodeKey(current), GetNodeCost(current), GetNodeKey(prev_node), context);
         
         // iterate all neighbors
         for (size_t n=0; n<neighborList->count; n++) {
@@ -534,9 +534,9 @@ ASPath ASPathCopy(ASPath path)
     }
 }
 
-float ASPathGetCost(ASPath path, size_t i)
+float ASPathGetCost(ASPath path, size_t index)
 {
-    return path? path->costs[i] : INFINITY;
+    return path? path->costs[index] : INFINITY;
 }
 
 size_t ASPathGetCount(ASPath path)
