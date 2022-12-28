@@ -146,7 +146,7 @@ int main(int argc, char** argv) {
     //j = 1023;
     float cost;
     for (i = 0; i < MAX_NODES; i++) {
-        printf("%d%\n", 100*i/MAX_NODES);
+        printf("Processing... %d%\n", 100*i/MAX_NODES);
         for (j = 0; j < MAX_NODES; j++) {
             //if (i != j) {
                 ASPath path = ASPathCreate(&pathSource, (void*)(&context), graph[i], graph[j]);
