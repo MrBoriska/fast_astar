@@ -146,9 +146,10 @@ int main(int argc, char** argv) {
     //j = 1023;
     float cost;
     for (i = 0; i < MAX_NODES; i++) {
+        printf("%d\n", 100*i/MAX_NODES);
         for (j = 0; j < MAX_NODES; j++) {
-            if (i != j) {
-                ASPath path = ASPathCreate(&pathSource, (void*)(&context), graph[0], graph[32]);
+            //if (i != j) {
+                ASPath path = ASPathCreate(&pathSource, (void*)(&context), graph[i], graph[j]);
 
                 hopCount = ASPathGetCount(path);
                 cost = ASPathGetCost(path, hopCount);
@@ -157,11 +158,13 @@ int main(int argc, char** argv) {
                     //printf("step %d: cost=%f\n", ind, cost);
                 }
                 ASPathDestroy(path);
-            }
+            //}
         }
+        system("clear");
     }
     clock_t end = clock();
     double time_spent = (double)(end - begin) / CLOCKS_PER_SEC;
+    time_spent /= MAX_NODES*MAX_NODES;
     printf("path from %d to %d: cost=%f, hopCount=%d\n", i, j, cost, hopCount);
     printf("Processing time: %f\n", time_spent);
     return 0;
