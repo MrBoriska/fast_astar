@@ -148,7 +148,7 @@ int main(int argc, char** argv) {
     for (i = 0; i < MAX_NODES; i++) {
         for (j = 0; j < MAX_NODES; j++) {
             if (i != j) {
-                ASPath path = ASPathCreate(&pathSource, (void*)(&context), graph[i], graph[j]);
+                ASPath path = ASPathCreate(&pathSource, (void*)(&context), graph[0], graph[32]);
 
                 hopCount = ASPathGetCount(path);
                 cost = ASPathGetCost(path, hopCount);
