@@ -524,10 +524,11 @@ ASPath ASPathCopy(ASPath path)
         const size_t size = sizeof(struct __ASPath);
         ASPath newPath = malloc(size);
         memcpy(newPath, path, size);
-        newPath->costs = calloc(path->count, sizeof(float));
+
+        newPath->costs = malloc(path->count*sizeof(float));
+        newPath->nodeKeys = malloc(path->count*path->nodeSize);
         memcpy(newPath->costs, path->costs, path->count*sizeof(float));
-        newPath->nodeKeys = calloc(path->count, sizeof(path->nodeSize));
-        memcpy(newPath->nodeKeys, path->nodeKeys, path->count*sizeof(path->nodeSize));
+        memcpy(newPath->nodeKeys, path->nodeKeys, path->count*path->nodeSize);
         return newPath;
     } else {
         return NULL;

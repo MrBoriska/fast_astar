@@ -162,7 +162,8 @@ int main(int argc, char** argv) {
                 cost = ASPathGetCost(path_, hopCount);
                 for (int ind=0; ind<hopCount; ind++) {
                     cost = ASPathGetCost(path_, ind);
-                    //printf("step %d: cost=%f\n", ind, cost);
+                    node *n = (node*)ASPathGetNode(path_, ind);
+                    printf("index %ld: x=%f y=%f cost=%f neighbors=%ld\n", n->index, n->x, n->y, cost, n->neighbors_count);
                 }
                 ASPathDestroy(path);
                 ASPathDestroy(path_);
