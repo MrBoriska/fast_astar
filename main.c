@@ -35,6 +35,13 @@ static float manhetten_dist(float x1, float y1, float x2, float y2) {
     return x_delta + y_delta;
 }
 
+static float euclidian_dist(float x1, float y1, float x2, float y2) {
+    float x_delta, y_delta;
+    x_delta = x1 - x2;
+    y_delta = y1 - y2;
+    return sqrt(x_delta*x_delta + y_delta*y_delta);
+}
+
 // Use for heuristic only (node to goal dist)
 static float hopCost(void *srcNode, void *dstNode, void *context) {
     node* src = (node*)srcNode;
@@ -46,15 +53,6 @@ static float hopCost(void *srcNode, void *dstNode, void *context) {
 
 static float angleBetweenVectors(float x1, float y1, float x2, float y2)
 {
-    // very small faster (2 percent)
-    // float dot = x1*x2+y1*y2;
-    // if (dot > 0) { // в одну сторону
-    //     return 0.0;
-    // } else if (dot < 0) { // в противоположные стороны
-    //     return 3.14;
-    // }// перпендикулярно
-    // return 3.14/2.0;
-
     return 3.14*(1.0-((x1*x2+y1*y2)/(sqrt(x1*x1+y1*y1)*sqrt(x2*x2+y2*y2))))/2.0; // improve perfomance
 }
 
@@ -85,7 +83,7 @@ static float neighborCost(void *srcNode, void *dstNode, void *fromsrcNode, void 
         k /= c->w;
     }
 
-    return manhetten_dist(src->x, src->y, dst->x, dst->y)/c->v + k;
+    return euclidian_dist(src->x, src->y, dst->x, dst->y)/c->v + k;
 }
 
 static void nodeNeighbors(ASNeighborList neighbors, void* srcNode, float srcNode_cost, void* fromsrcNode, void* context) {
@@ -163,7 +161,7 @@ int main(int argc, char** argv) {
                 for (int ind=0; ind<hopCount; ind++) {
                     cost = ASPathGetCost(path_, ind);
                     node *n = (node*)ASPathGetNode(path_, ind);
-                    printf("index %ld: x=%f y=%f cost=%f neighbors=%ld\n", n->index, n->x, n->y, cost, n->neighbors_count);
+                    //printf("index %ld: x=%f y=%f cost=%f neighbors=%ld\n", n->index, n->x, n->y, cost, n->neighbors_count);
                 }
                 ASPathDestroy(path);
                 ASPathDestroy(path_);
