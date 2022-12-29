@@ -4,13 +4,40 @@
 #include <time.h>
 #include <math.h>
 
-#define MAX_NODES   1024
-#define MAX_POS     32
-#define HOP_LEN     2
-#define X_STEP      1
-#define Y_STEP      1
-#define Y_PER_ROW   32
+#define MAX_NODES     1024
+#define MAX_POS       32
+#define HOP_LEN       2
+#define X_STEP        1
+#define Y_STEP        1
+#define Y_PER_ROW     32
 #define MAX_NEIGHBORS 6
+#define AGV_COUNT     10
+#define TIME_COLLISION_TOL 3.0
+
+
+typedef struct PathState {
+    size_t current_step;
+    float timestamp_start;
+    ASPath path;
+} PathState;
+
+typedef struct AGVState {
+    size_t node_id;
+    size_t goal_node_id;
+    float timestamp;
+    PathState path_state;
+} AGVState;
+
+typedef struct NodePathState {
+    size_t in_node_step;
+    PathState *path_state;
+} NodePathState;
+
+
+typedef struct NodePathsState {
+    size_t path_counts;
+    NodePathState path_states[AGV_COUNT];
+} NodePathsState;
 
 typedef struct node {
     size_t index;
@@ -18,13 +45,14 @@ typedef struct node {
     float y;
     size_t neighbors_count;
     struct node* neighbors[MAX_NEIGHBORS];
+    struct NodePathsState paths;
 } node;
-
 
 typedef struct Context {
     float v;
     float w;
     float timestamp;
+    node** graph;
 } Context;
 
 static float manhetten_dist(float x1, float y1, float x2, float y2) {
@@ -90,17 +118,34 @@ static void nodeNeighbors(ASNeighborList neighbors, void* srcNode, float srcNode
     node* src = (node*)srcNode;
     Context *ctx = (Context *)context;
 
-    int i;
+    int i, j;
     for (i = 0; i < src->neighbors_count; i++) {
         // check if node collision by time (cost) with existing paths (get from context)
         if (src->neighbors[i]) {
             float neighbor_cost = neighborCost(srcNode, (void*)(src->neighbors[i]), fromsrcNode,  context);
+
             
             // get cost for all robots path in src->neighbors[i] node
-            
+            int collision_detected = 0;
+            if (src->neighbors[i]->paths.path_counts) {
+                float abs_neighbor_cost = ctx->timestamp + srcNode_cost + neighbor_cost;
+                for(j=0; j < AGV_COUNT; j++) {
+                    NodePathState *path_states = &(src->neighbors[i]->paths.path_states[j]);
+                    if (path_states->path_state) {
+                        size_t ind = path_states->in_node_step;
+                        ASPath path = path_states->path_state->path;
+                        float timestamp = path_states->path_state->timestamp_start;
+                        float cost = ASPathGetCost(path, ind);
+                        float abs_neighbor_cost_paths = timestamp+cost;
+
+                        if (fabs(abs_neighbor_cost_paths - abs_neighbor_cost) < TIME_COLLISION_TOL)
+                            collision_detected = 1;
+                    }
+                }
+            }
             //if ((ctx->timestamp + srcNode_cost + neighbor_cost) is not equal for x/y and cost for all robots
-            
-            ASNeighborListAdd(neighbors, (void*)src->neighbors[i], neighbor_cost);
+            if (!collision_detected)
+                ASNeighborListAdd(neighbors, (void*)src->neighbors[i], neighbor_cost);
         }
     }
 }
@@ -114,59 +159,75 @@ static const ASPathNodeSource pathSource = {
 };
 
 int main(int argc, char** argv) {
-    node* graph[MAX_NODES];
+    
     int i, j;
+    AGVState agv_states[AGV_COUNT];
+    for (i = 0; i < AGV_COUNT; i++) {
+        agv_states[i].node_id = i;
+        agv_states[i].goal_node_id = i + 100;
+        agv_states[i].timestamp = 0; // todo: need update node_id and timestamp by feedback
+    }
+    
+    node* graph[MAX_NODES];
 
     // set graph poses
     for (i = 0; i < MAX_NODES; i++) {
         graph[i] = calloc(1, sizeof(node));
         graph[i]->index = i;
-        graph[i]->neighbors_count = 0; // paranoja mod. Calloc init as 0 by default.
+        //graph[i]->neighbors_count = 0; // paranoja mod. Calloc init as 0 by default.
         graph[i]->x = i*X_STEP % MAX_POS;
         graph[i]->y = (int)(i/Y_PER_ROW)*Y_STEP % MAX_POS;
-        for (j = 0; j < MAX_NEIGHBORS;  j++) graph[i]->neighbors[j] = NULL; // paranoja mod. Calloc init as 0 by default.
+        //for (j = 0; j < MAX_NEIGHBORS;  j++) graph[i]->neighbors[j] = NULL; // paranoja mod. Calloc init as 0 by default.
     }
 
     // fill graph edges
     int hopCount;
     for (i = 0; i < MAX_NODES; i++) {
         for (j = 0; j < MAX_NODES; j++) {
-            if (i != j && hopCost(graph[i], graph[j], NULL) < HOP_LEN) { // todo: this must be change
+            if (hopCost(graph[i], graph[j], NULL) < HOP_LEN) { // todo: this must be change
                 // set by map allowed direction type
                 if (graph[i]->neighbors_count < MAX_NEIGHBORS)
                     graph[i]->neighbors[graph[i]->neighbors_count++] = graph[j];
-                if (graph[j]->neighbors_count < MAX_NEIGHBORS)
-                    graph[j]->neighbors[graph[j]->neighbors_count++] = graph[i];
+                //if (graph[j]->neighbors_count < MAX_NEIGHBORS)
+                //    graph[j]->neighbors[graph[j]->neighbors_count++] = graph[i];
             }
         }
     }
+
+
+
+
+
+
     Context context;
     context.v = 2.0;
     context.w = 1.0;
     context.timestamp = clock() / CLOCKS_PER_SEC;
+    context.graph = graph;
 
     clock_t begin = clock();
 
     i = 0;
     j = 1023;
     float cost;
-    for (i = 0; i < MAX_NODES; i++) {
-        printf("Processing... %d%\n", 100*i/MAX_NODES);
-        for (j = 0; j < MAX_NODES; j++) {
+    for (i = 0; i < AGV_COUNT; i++) {
+        ASPath path = ASPathCreate(&pathSource, (void*)(&context), graph[agv_states[i].node_id], graph[agv_states[i].goal_node_id]);
+        
+        // Send path to AGV for execution
+        agv_states[i].path_state.path = path;
+        agv_states[i].path_state.current_step = 0;
+        agv_states[i].path_state.timestamp_start = clock() / CLOCKS_PER_SEC;
 
-                ASPath path = ASPathCreate(&pathSource, (void*)(&context), graph[i], graph[j]);
-                ASPath path_ = ASPathCopy(path);
-                hopCount = ASPathGetCount(path_);
-                cost = ASPathGetCost(path_, hopCount);
-                for (int ind=0; ind<hopCount; ind++) {
-                    cost = ASPathGetCost(path_, ind);
-                    node *n = (node*)ASPathGetNode(path_, ind);
-                    //printf("index %ld: x=%f y=%f cost=%f neighbors=%ld\n", n->index, n->x, n->y, cost, n->neighbors_count);
-                }
-                ASPathDestroy(path);
-                ASPathDestroy(path_);
+        // Set path states to graph
+        hopCount = ASPathGetCount(path);
+        cost = ASPathGetCost(path, hopCount);
+        for (int ind=0; ind<hopCount; ind++) {
+            cost = ASPathGetCost(path, ind);
+            node *n = (node*)ASPathGetNode(path, ind);
+            n->paths.path_states[i].in_node_step = ind;
+            n->paths.path_states[i].path_state = &agv_states[i].path_state;
         }
-        system("clear");
+        //ASPathDestroy(path);
     }
     clock_t end = clock();
     double time_spent = (double)(end - begin) / CLOCKS_PER_SEC;
