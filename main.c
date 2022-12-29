@@ -52,7 +52,6 @@ typedef struct Context {
     float v;
     float w;
     float timestamp;
-    node** graph;
 } Context;
 
 static float manhetten_dist(float x1, float y1, float x2, float y2) {
@@ -194,23 +193,17 @@ int main(int argc, char** argv) {
         }
     }
 
-
-
-
-
-
-    Context context;
-    context.v = 2.0;
-    context.w = 1.0;
-    context.timestamp = clock() / CLOCKS_PER_SEC;
-    context.graph = graph;
-
     clock_t begin = clock();
 
     i = 0;
     j = 1023;
     float cost;
     for (i = 0; i < AGV_COUNT; i++) {
+        Context context;
+        context.v = 2.0;
+        context.w = 1.0;
+        context.timestamp = clock() / CLOCKS_PER_SEC;
+
         ASPath path = ASPathCreate(&pathSource, (void*)(&context), graph[agv_states[i].node_id], graph[agv_states[i].goal_node_id]);
         
         // Send path to AGV for execution
@@ -224,6 +217,7 @@ int main(int argc, char** argv) {
         for (int ind=0; ind<hopCount; ind++) {
             cost = ASPathGetCost(path, ind);
             node *n = (node*)ASPathGetNode(path, ind);
+            n->paths.path_counts++;
             n->paths.path_states[i].in_node_step = ind;
             n->paths.path_states[i].path_state = &agv_states[i].path_state;
         }
