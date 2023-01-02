@@ -15,12 +15,14 @@
 #define TIME_COLLISION_TOL 2.0
 
 
+// Main AGV current path
 typedef struct PathState {
     size_t current_step;
     float timestamp_start;
     ASPath path;
 } PathState;
 
+// Main AGV state structure
 typedef struct AGVState {
     size_t node_id;
     size_t goal_node_id;
@@ -28,17 +30,19 @@ typedef struct AGVState {
     PathState path_state;
 } AGVState;
 
+// Path state pointer for node path array element
 typedef struct NodePathState {
     size_t in_node_step;
     PathState *path_state;
 } NodePathState;
 
-
+// Paths states array for each node in graph
 typedef struct NodePathsState {
     size_t path_counts;
     NodePathState path_states[AGV_COUNT];
 } NodePathsState;
 
+// Node of Graph. Where neighbors - is edges of node
 typedef struct node {
     size_t index;
     float x;
@@ -48,11 +52,14 @@ typedef struct node {
     struct NodePathsState paths;
 } node;
 
+// Internal structure for include data into AStar callbacks
 typedef struct Context {
     float v;
     float w;
-    float timestamp;
+    float timestamp; // time of start of moving
     node **graph;
+    size_t agv_id;
+    AGVState* agv_states;
 } Context;
 
 static float manhetten_dist(float x1, float y1, float x2, float y2) {
@@ -127,7 +134,10 @@ static void nodeNeighbors(ASNeighborList neighbors, void* srcNode, float srcNode
             // get cost for all robots path in src->neighbors[i] node
             int collision_detected = 0;
             if (ctx->graph[src->neighbors[i]->index]->paths.path_counts) {
+                // current AGV time prediction
                 float abs_neighbor_cost = ctx->timestamp + srcNode_cost + neighbor_cost;
+
+                // Get and check with other AGV time prediction
                 for(j=0; j < AGV_COUNT; j++) {
                     NodePathState *path_states = &(ctx->graph[src->neighbors[i]->index]->paths.path_states[j]);
                     if (path_states->path_state) {
@@ -137,12 +147,26 @@ static void nodeNeighbors(ASNeighborList neighbors, void* srcNode, float srcNode
                         float cost = ASPathGetCost(path, ind);
                         float abs_neighbor_cost_paths = timestamp+cost;
 
-                        if (fabs(abs_neighbor_cost_paths - abs_neighbor_cost) < TIME_COLLISION_TOL)
+                        if (fabs(abs_neighbor_cost_paths - abs_neighbor_cost) < TIME_COLLISION_TOL) {
                             collision_detected = 1;
+                            break;
+                        }
+                    }
+
+                }
+            }
+
+            //todo: check collision with stopped AGV.
+            if (!collision_detected) {
+                for(j=0; j < AGV_COUNT; j++) {
+                    if (j != ctx->agv_id) {
+                        if (ctx->agv_states[j].node_id == ctx->agv_states[j].goal_node_id && ctx->agv_states[j].node_id == src->index) {
+                            collision_detected = 1;
+                            break;
+                        }
                     }
                 }
             }
-            //if ((ctx->timestamp + srcNode_cost + neighbor_cost) is not equal for x/y and cost for all robots
             if (!collision_detected)
                 ASNeighborListAdd(neighbors, (void*)src->neighbors[i], neighbor_cost);
         }
@@ -205,6 +229,8 @@ int main(int argc, char** argv) {
         context.w = 1.0;
         context.timestamp = clock() / CLOCKS_PER_SEC;
         context.graph = graph;
+        context.agv_id = i;
+        context.agv_states = agv_states;
 
         ASPath path = ASPathCreate(&pathSource, (void*)(&context), graph[agv_states[i].node_id], graph[agv_states[i].goal_node_id]);
 
