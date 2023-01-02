@@ -12,7 +12,7 @@
 #define Y_PER_ROW     32
 #define MAX_NEIGHBORS 6
 #define AGV_COUNT     10
-#define TIME_COLLISION_TOL 3.0
+#define TIME_COLLISION_TOL 2.0
 
 
 typedef struct PathState {
@@ -52,6 +52,7 @@ typedef struct Context {
     float v;
     float w;
     float timestamp;
+    node **graph;
 } Context;
 
 static float manhetten_dist(float x1, float y1, float x2, float y2) {
@@ -80,7 +81,7 @@ static float hopCost(void *srcNode, void *dstNode, void *context) {
 
 static float angleBetweenVectors(float x1, float y1, float x2, float y2)
 {
-    return 3.14*(1.0-((x1*x2+y1*y2)/(sqrt(x1*x1+y1*y1)*sqrt(x2*x2+y2*y2))))/2.0; // improve perfomance
+    return M_PI*(1.0-((x1*x2+y1*y2)/(sqrt(x1*x1+y1*y1)*sqrt(x2*x2+y2*y2))))/2.0; // improve perfomance
 }
 
 static float neighborCost(void *srcNode, void *dstNode, void *fromsrcNode, void *context) {
@@ -93,7 +94,7 @@ static float neighborCost(void *srcNode, void *dstNode, void *fromsrcNode, void 
         return 0.0;
     }
 
-    // Increase cost koefficient for change direction considering (1.0 for 180 deg. and 0.0 for 0 deg.)
+    // Increasing cost koefficient for change direction considering
     float k = 0.0;
     // Get current direction of AGV
     float dir_x, dir_y;
@@ -122,14 +123,13 @@ static void nodeNeighbors(ASNeighborList neighbors, void* srcNode, float srcNode
         // check if node collision by time (cost) with existing paths (get from context)
         if (src->neighbors[i]) {
             float neighbor_cost = neighborCost(srcNode, (void*)(src->neighbors[i]), fromsrcNode,  context);
-
             
             // get cost for all robots path in src->neighbors[i] node
             int collision_detected = 0;
-            if (src->neighbors[i]->paths.path_counts) {
+            if (ctx->graph[src->neighbors[i]->index]->paths.path_counts) {
                 float abs_neighbor_cost = ctx->timestamp + srcNode_cost + neighbor_cost;
                 for(j=0; j < AGV_COUNT; j++) {
-                    NodePathState *path_states = &(src->neighbors[i]->paths.path_states[j]);
+                    NodePathState *path_states = &(ctx->graph[src->neighbors[i]->index]->paths.path_states[j]);
                     if (path_states->path_state) {
                         size_t ind = path_states->in_node_step;
                         ASPath path = path_states->path_state->path;
@@ -198,13 +198,25 @@ int main(int argc, char** argv) {
     i = 0;
     j = 1023;
     float cost;
+    
     for (i = 0; i < AGV_COUNT; i++) {
         Context context;
         context.v = 2.0;
         context.w = 1.0;
         context.timestamp = clock() / CLOCKS_PER_SEC;
+        context.graph = graph;
 
         ASPath path = ASPathCreate(&pathSource, (void*)(&context), graph[agv_states[i].node_id], graph[agv_states[i].goal_node_id]);
+
+        if (path == NULL) {
+            printf("Not found path for AGV: %d from (%.2f, %.2f) to (%.2f, %.2f)\n", i,
+                graph[agv_states[i].node_id]->x,
+                graph[agv_states[i].node_id]->y,
+                graph[agv_states[i].goal_node_id]->x,
+                graph[agv_states[i].goal_node_id]->y
+            );
+            continue;
+        }
         
         // Send path to AGV for execution
         agv_states[i].path_state.path = path;
@@ -216,7 +228,7 @@ int main(int argc, char** argv) {
         cost = ASPathGetCost(path, hopCount);
         for (int ind=0; ind<hopCount; ind++) {
             cost = ASPathGetCost(path, ind);
-            node *n = (node*)ASPathGetNode(path, ind);
+            node *n = graph[((node*)ASPathGetNode(path, ind))->index];
             n->paths.path_counts++;
             n->paths.path_states[i].in_node_step = ind;
             n->paths.path_states[i].path_state = &agv_states[i].path_state;
@@ -225,6 +237,21 @@ int main(int argc, char** argv) {
     }
     clock_t end = clock();
     double time_spent = (double)(end - begin) / CLOCKS_PER_SEC;
+
+    // Print results:
+    for (i=0; i < AGV_COUNT; i++) {
+        ASPath path = agv_states[i].path_state.path;
+        hopCount = ASPathGetCount(path);
+        cost = ASPathGetCost(path, hopCount);
+        printf("AGV %d:\n", i);
+        for (int ind=0; ind<hopCount; ind++) {
+            cost = ASPathGetCost(path, ind);
+            node *n = (node*)ASPathGetNode(path, ind);
+
+            printf("    t: %.2f, x: %.2f, y: %.2f, n_id: %ld\n", cost, n->x, n->y, n->index);
+        }
+    }
+
     //time_spent /= MAX_NODES*MAX_NODES;
     //printf("path from %d to %d: cost=%f, hopCount=%d\n", i, j, cost, hopCount);
     printf("Processing time: %f (avg: %f)\n", time_spent, time_spent/(MAX_NODES*MAX_NODES));
